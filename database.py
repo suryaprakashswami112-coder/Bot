@@ -131,3 +131,25 @@ def get_stats():
     except Exception as e:
         print(f"Error getting stats: {e}")
         return {'total_users': 0, 'total_payments': 0, 'pending': 0, 'confirmed': 0, 'rejected': 0}
+
+def get_admins() -> list:
+    admins = get_setting('admin_ids')
+    if admins is None:
+        admin_id = os.getenv("ADMIN_USER_ID")
+        if admin_id:
+            update_setting('admin_ids', str(admin_id))
+            return [str(admin_id)]
+        return []
+    return [aid.strip() for aid in admins.split(',') if aid.strip()]
+
+def add_admin(user_id: str):
+    admins = get_admins()
+    if str(user_id) not in admins:
+        admins.append(str(user_id))
+        update_setting('admin_ids', ','.join(admins))
+
+def remove_admin(user_id: str):
+    admins = get_admins()
+    if str(user_id) in admins:
+        admins.remove(str(user_id))
+        update_setting('admin_ids', ','.join(admins))

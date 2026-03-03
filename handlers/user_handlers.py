@@ -1,7 +1,7 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from database import get_setting, add_user, update_user_status, add_payment, get_user
+from database import get_setting, add_user, update_user_status, add_payment, get_user, get_admins
 
 PAY_SCREENSHOT = 1
 
@@ -82,18 +82,32 @@ async def receive_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     confirm_message = get_setting('confirm_message') or "✅ Screenshot Submitted!\nPlease wait for the admin to verify."
     await update.message.reply_text(confirm_message)
     
-    admin_id = os.getenv("ADMIN_USER_ID")
-    if admin_id:
+    admins = get_admins()
+    admin_caption = (
+        f"🚨 **New Payment Received!**\n"
+        f"👤 Name: {user.first_name} {user.last_name or ''} {('(@' + user.username + ')') if user.username else ''}\n"
+        f"🆔 User ID: `{user.id}`\n"
+        f"🕰 Time: {update.message.date.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        f"💳 Payment ID: `{payment_id}`\n\n"
+        f"Please approve or reject below."
+    )
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Send Link & Approve", callback_data=f"approve_payment_{payment_id}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_payment_{payment_id}")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    for admin_id in admins:
         try:
-            keyboard = [
-                [
-                    InlineKeyboardButton("✅ Approve", callback_data=f"approve_payment_{payment_id}"),
-                    InlineKeyboardButton("❌ Reject", callback_data=f"reject_payment_{payment_id}")
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            caption = f"New Payment from {user.first_name} (@{user.username})\nID: {payment_id}"
-            await context.bot.send_photo(chat_id=int(admin_id), photo=photo_file, caption=caption, reply_markup=reply_markup)
+            await context.bot.send_photo(
+                chat_id=int(admin_id), 
+                photo=photo_file, 
+                caption=admin_caption, 
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
         except Exception as e:
             print(f"Failed to notify admin {admin_id}: {e}")
             

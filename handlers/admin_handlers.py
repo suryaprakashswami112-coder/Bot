@@ -1,13 +1,17 @@
 import os
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from database import get_stats, get_setting, update_setting, update_payment_status, get_payment, get_users_by_status, update_user_status
+from database import get_stats, get_setting, update_setting, update_payment_status, get_payment, get_users_by_status, update_user_status, get_admins, add_admin, remove_admin
 
 EDIT_SETTING = 1
+RECEIVE_BROADCAST_MESSAGE = 2
+RECEIVE_NEW_ADMIN = 3
+RECEIVE_REMOVE_ADMIN = 4
 
 def is_admin(user_id: int) -> bool:
-    admin_id = os.getenv("ADMIN_USER_ID")
-    return str(user_id) == admin_id
+    admins = get_admins()
+    return str(user_id) in admins
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
@@ -73,8 +77,75 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
         await query.message.edit_text("🤖 Admin Panel\n\nChoose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
         
-    elif data in ["admin_users", "admin_payments", "admin_broadcast", "admin_control", "admin_join_link"]:
-        await query.message.reply_text("This section is configured or under construction. Click Back to return.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]]))
+    elif data == "admin_users":
+        keyboard = [
+            [InlineKeyboardButton("👥 All Users", callback_data="admin_users_all")],
+            [InlineKeyboardButton("✅ Approved Users", callback_data="admin_users_approved")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+        ]
+        await query.message.edit_text("👥 Users\n\nChoose a list to view:", reply_markup=InlineKeyboardMarkup(keyboard))
+        
+    elif data.startswith("admin_users_"):
+        status = data.replace("admin_users_", "")
+        users = get_users_by_status(None if status == "all" else "approved")
+        text = f"👥 {status.capitalize()} Users ({len(users)}):\n"
+        for i, u in enumerate(users[:50]): # limit to 50
+            text += f"- {u.get('first_name', '')} (@{u.get('username', '')}) `ID: {u.get('user_id')}`\n"
+        if len(users) > 50: text += "...and more."
+        if not users: text += "No users found."
+        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="admin_users")]]
+        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "admin_payments":
+        keyboard = [
+            [InlineKeyboardButton("⏳ Pending", callback_data="admin_payments_pending"), InlineKeyboardButton("✅ Done", callback_data="admin_payments_confirmed")],
+            [InlineKeyboardButton("❌ Rejected", callback_data="admin_payments_rejected")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+        ]
+        await query.message.edit_text("💳 Payments\n\nChoose payment status:", reply_markup=InlineKeyboardMarkup(keyboard))
+        
+    elif data.startswith("admin_payments_"):
+        status = data.replace("admin_payments_", "")
+        from database import supabase
+        if supabase:
+            resp = supabase.table('payments').select('*').eq('status', status).execute()
+            payments = resp.data if resp.data else []
+        else:
+            payments = []
+            
+        text = f"💳 {status.capitalize()} Payments ({len(payments)}):\n"
+        for p in payments[:50]:
+            text += f"- ID: `{p['id'][:8]}...` | User: `{p['user_id']}`\n"
+        if not payments: text += "No payments found."
+        keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="admin_payments")]]
+        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "admin_control":
+        keyboard = [
+            [InlineKeyboardButton("➕ Add Admin", callback_data="admin_add"), InlineKeyboardButton("➖ Remove Admin", callback_data="admin_remove")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
+        ]
+        admins = get_admins()
+        text = "👤 Admin Control\n\nCurrent Admins:\n" + "\n".join([f"- `{a}`" for a in admins])
+        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        
+    elif data == "admin_add":
+        await query.message.reply_text("Please reply with the Telegram User ID you want to ADD as Admin:")
+        return RECEIVE_NEW_ADMIN
+        
+    elif data == "admin_remove":
+        await query.message.reply_text("Please reply with the Telegram User ID you want to REMOVE from Admins:")
+        return RECEIVE_REMOVE_ADMIN
+
+    elif data == "admin_broadcast":
+        await query.message.reply_text("Please send the message (Text/Photo/Video) you want to broadcast to ALL users:")
+        return RECEIVE_BROADCAST_MESSAGE
+        
+    elif data == "admin_join_link":
+        join_link = get_setting('join_link') or "https://example.com"
+        welcome_text = get_setting('welcome_text') or "Click below to join!"
+        keyboard = [[InlineKeyboardButton("🔗 JOIN CHANNEL", url=join_link)]]
+        await query.message.reply_text(f"*(Preview of Join Link)*\n\n{welcome_text}", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
         
     return ConversationHandler.END
 
@@ -98,6 +169,68 @@ async def receive_setting(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
     update_setting(setting_key, value)
     await update.message.reply_text(f"✅ Setting {setting_key} updated securely.")
+    return ConversationHandler.END
+
+async def receive_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not is_admin(update.effective_user.id):
+        return ConversationHandler.END
+        
+    users = get_users_by_status(None)
+    total = len(users)
+    if total == 0:
+        await update.message.reply_text("No users to broadcast to.")
+        return ConversationHandler.END
+        
+    progress_msg = await update.message.reply_text(f"⏳ Broadcasting to {total} users...\nProgress: [                    ] 0%")
+    
+    success = 0
+    for i, u in enumerate(users):
+        try:
+            if update.message.photo:
+                await context.bot.send_photo(chat_id=u['user_id'], photo=update.message.photo[-1].file_id, caption=update.message.caption)
+            elif update.message.video:
+                await context.bot.send_video(chat_id=u['user_id'], video=update.message.video.file_id, caption=update.message.caption)
+            else:
+                await context.bot.send_message(chat_id=u['user_id'], text=update.message.text)
+            success += 1
+        except:
+            pass
+            
+        # Update progress bar every 10 users or at the end
+        if (i + 1) % 10 == 0 or (i + 1) == total:
+            percent = int(((i + 1) / total) * 100)
+            bars = int(percent / 5)
+            progress_bar = "[" + "█" * bars + " " * (20 - bars) + f"] {percent}%"
+            try:
+                await progress_msg.edit_text(f"⏳ Broadcasting to {total} users...\nProgress: {progress_bar}")
+            except:
+                pass
+                
+        await asyncio.sleep(0.05) # Prevent rate limits
+        
+    await progress_msg.edit_text(f"✅ Broadcast Complete!\nSuccessfully sent to {success}/{total} users.")
+    return ConversationHandler.END
+
+async def receive_new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not is_admin(update.effective_user.id): return ConversationHandler.END
+    new_admin = update.message.text.strip()
+    if new_admin.isdigit():
+        add_admin(new_admin)
+        await update.message.reply_text(f"✅ User `{new_admin}` added as Admin.", parse_mode='Markdown')
+    else:
+        await update.message.reply_text("❌ Invalid ID. Must be numbers.")
+    return ConversationHandler.END
+
+async def receive_remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not is_admin(update.effective_user.id): return ConversationHandler.END
+    old_admin = update.message.text.strip()
+    if old_admin == str(update.effective_user.id):
+        await update.message.reply_text("❌ You cannot remove yourself.")
+    elif old_admin.isdigit():
+        remove_admin(old_admin)
+        await update.message.reply_text(f"✅ User `{old_admin}` removed from Admins.", parse_mode='Markdown')
+    else:
+        await update.message.reply_text("❌ Invalid ID.")
     return ConversationHandler.END
 
 async def approve_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
