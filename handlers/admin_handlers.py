@@ -190,6 +190,10 @@ async def receive_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 await context.bot.send_photo(chat_id=u['user_id'], photo=update.message.photo[-1].file_id, caption=update.message.caption)
             elif update.message.video:
                 await context.bot.send_video(chat_id=u['user_id'], video=update.message.video.file_id, caption=update.message.caption)
+            elif update.message.animation:
+                await context.bot.send_animation(chat_id=u['user_id'], animation=update.message.animation.file_id, caption=update.message.caption)
+            elif update.message.document:
+                await context.bot.send_document(chat_id=u['user_id'], document=update.message.document.file_id, caption=update.message.caption)
             else:
                 await context.bot.send_message(chat_id=u['user_id'], text=update.message.text)
             success += 1

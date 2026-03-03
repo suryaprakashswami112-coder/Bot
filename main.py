@@ -15,6 +15,7 @@ from handlers.admin_handlers import (
     RECEIVE_NEW_ADMIN, receive_new_admin,
     RECEIVE_REMOVE_ADMIN, receive_remove_admin
 )
+from keep_alive import keep_alive
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main() -> None:
+    keep_alive()
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token or token == "your_bot_token_here":
         logger.error("No valid Telegram Bot Token provided in .env!")
