@@ -56,8 +56,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("💳 UPI / QR", callback_data="admin_edit_upi_message"), InlineKeyboardButton("🖼 UPI QR", callback_data="admin_edit_upi_qr")],
             [InlineKeyboardButton("✅ Confirm Msg", callback_data="admin_edit_confirm_message")],
             [InlineKeyboardButton("🛑 Offer Text", callback_data="admin_edit_offer_text"), InlineKeyboardButton("🖼 Offer QR", callback_data="admin_edit_offer_qr")],
-            [InlineKeyboardButton("📢 Broadcast Msg", callback_data="admin_edit_broadcast_message")],
-            [InlineKeyboardButton("🔗 Join Link", callback_data="admin_edit_join_link")],
+            [InlineKeyboardButton("📢 Broadcast Msg", callback_data="admin_edit_broadcast_message"), InlineKeyboardButton("🔗 Join Options", callback_data="admin_join_options")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
         ]
         await query.message.edit_text("⚙️ Settings\n\nChoose what to edit:\n(Send text or an image)", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -141,11 +140,23 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.message.reply_text("Please send the message (Text/Photo/Video) you want to broadcast to ALL users:")
         return RECEIVE_BROADCAST_MESSAGE
         
-    elif data == "admin_join_link":
+    elif data == "admin_join_options":
+        keyboard = [
+            [InlineKeyboardButton("🔗 Join Channel Link", callback_data="admin_edit_join_link")],
+            [InlineKeyboardButton("📝 Join Link Message", callback_data="admin_edit_join_msg")],
+            [InlineKeyboardButton("👁 Preview Result", callback_data="admin_join_preview")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_settings")]
+        ]
+        await query.message.edit_text("🔗 Join Options\n\nEdit your post-payment join message:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "admin_join_preview":
         join_link = get_setting('join_link') or "https://example.com"
-        welcome_text = get_setting('welcome_text') or "Click below to join!"
+        join_msg = get_setting('join_msg') or "Click below to join!"
         keyboard = [[InlineKeyboardButton("🔗 JOIN CHANNEL", url=join_link)]]
-        await query.message.reply_text(f"*(Preview of Join Link)*\n\n{welcome_text}", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            await query.message.reply_text(f"*(Preview of Join Message)*\n\n{join_msg}", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        except:
+            await query.message.reply_text(f"*(Preview of Join Message)*\n\n{join_msg}", reply_markup=InlineKeyboardMarkup(keyboard))
         
     return ConversationHandler.END
 
@@ -254,7 +265,13 @@ async def approve_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Send confirmation to user
             confirm_message = get_setting('confirm_message') or "✅ Your payment was approved!"
             join_link = get_setting('join_link') or "https://t.me/example"
-            await context.bot.send_message(chat_id=user_id, text=f"{confirm_message}\n\nJoin here: {join_link}")
+            join_msg = get_setting('join_msg') or "Click below to join!"
+            
+            keyboard = [[InlineKeyboardButton("🔗 JOIN CHANNEL", url=join_link)]]
+            try:
+                await context.bot.send_message(chat_id=user_id, text=f"{confirm_message}\n\n{join_msg}", reply_markup=InlineKeyboardMarkup(keyboard))
+            except:
+                await context.bot.send_message(chat_id=user_id, text=f"{confirm_message}\n\n{join_msg}\n{join_link}")
             
             # Broadcast to unapproved users
             broadcast_msg = get_setting('broadcast_message') or "💎 𝐍𝐄𝐖 𝐌𝐄𝐌𝐁𝐄𝐑 𝐂𝐎𝐍𝐅𝐈𝐑𝐌𝐄𝐃 💎..."

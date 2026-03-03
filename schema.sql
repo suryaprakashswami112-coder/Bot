@@ -42,5 +42,6 @@ INSERT INTO public.settings (key, value) VALUES
     ('offer_text', '🛑 WAIT! DON''T GO YET!\n\nIs the price too high? 😟\n💎 Original Price: ₹79\n🎁 Your Offer Price: ₹59 ONLY!\n\n⚠️ This offer disappears soon.'),
     ('offer_qr', 'none'),
     ('broadcast_message', '💎 𝐍𝐄𝐖 𝐌𝐄𝐌𝐁𝐄𝐑 𝐂𝐎𝐍𝐅𝐈𝐑𝐌𝐄𝐃 💎\n\n👤 𝑺𝒐𝒎𝒆𝒐𝒏𝒆 𝒋𝒖𝒔𝒕 𝒖𝒏𝒍𝒐𝒄𝒌𝒆𝒅 𝑳𝒊𝒇𝒆𝒕𝒊𝒎𝒆 𝑨𝒄𝒄𝒆𝒔𝒔!\n\n⚡️ 𝙄𝙣𝙨𝙩𝙖𝙣𝙩 𝘼𝙥𝙥𝙧𝙤𝙫𝙖𝙡\n🔓 𝙁𝙪𝙡𝙡 𝘼𝙘𝙘𝙚𝙨𝙨 𝙂𝙧𝙖𝙣𝙩𝙚𝙙\n✅ 100% 𝙑𝙚𝙧𝙞𝙛𝙞𝙚𝙙\n\n👉 /CLAIM_OFFER 👈🏻 (ᴄʟᴀɪᴍ ʏᴏᴜʀ ꜱᴘᴏᴛ ɴᴏᴡ 🥵)'),
-    ('join_link', 'https://t.me/+your_private_channel_link')
+    ('join_link', 'https://t.me/+your_private_channel_link'),
+    ('join_msg', 'Click below to join!')
 ON CONFLICT (key) DO NOTHING;
