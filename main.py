@@ -70,8 +70,9 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(approve_payment, pattern='^approve_payment_.*$'))
     application.add_handler(CallbackQueryHandler(reject_payment, pattern='^reject_payment_.*$'))
     
-    # Offer Reject Callback
+    # Offer Reject & Cancel Callbacks (works globally)
     application.add_handler(CallbackQueryHandler(reject_offer, pattern='^reject_offer$'))
+    application.add_handler(CallbackQueryHandler(cancel_payment, pattern='^cancel_payment$'))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
