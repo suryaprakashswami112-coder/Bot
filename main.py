@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 from handlers.user_handlers import (
     start, unlock_premium, i_have_paid, receive_screenshot, 
-    cancel_payment, claim_offer, PAY_SCREENSHOT
+    cancel_payment, claim_offer, reject_offer, PAY_SCREENSHOT
 )
 from handlers.admin_handlers import (
     admin_panel, admin_callback, receive_setting, 
@@ -67,6 +67,9 @@ def main() -> None:
     # Base Admin Callbacks (Handled inside admin_conv mostly, but we keep these for non-conversation flows)
     application.add_handler(CallbackQueryHandler(approve_payment, pattern='^approve_payment_.*$'))
     application.add_handler(CallbackQueryHandler(reject_payment, pattern='^reject_payment_.*$'))
+    
+    # Offer Reject Callback
+    application.add_handler(CallbackQueryHandler(reject_offer, pattern='^reject_offer$'))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

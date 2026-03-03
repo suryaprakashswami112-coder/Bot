@@ -114,29 +114,42 @@ async def receive_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return ConversationHandler.END
 
 async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    # Need to handle both CallbackQuery and CommandHandler cleanly
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text("Payment cancelled.")
-    else:
-        await update.message.reply_text("Payment cancelled.")
-    return ConversationHandler.END
-
-async def claim_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if query:
+        await query.answer()
+        
     offer_text = get_setting('offer_text') or "Original Price: ₹79\nYour Offer Price: ₹59 ONLY!"
     offer_qr = get_setting('offer_qr') or get_setting('upi_qr')
     
     keyboard = [
         [InlineKeyboardButton("✅ I PAID ₹59", callback_data="i_have_paid")],
-        [InlineKeyboardButton("❌ No thanks", callback_data="cancel_payment")]
+        [InlineKeyboardButton("❌ No thanks, I'm broke", callback_data="reject_offer")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         if offer_qr and offer_qr != 'none':
-            await update.message.reply_photo(photo=offer_qr, caption=offer_text, reply_markup=reply_markup)
+            if query:
+                await query.message.reply_photo(photo=offer_qr, caption=offer_text, reply_markup=reply_markup)
+            else:
+                await update.message.reply_photo(photo=offer_qr, caption=offer_text, reply_markup=reply_markup)
         else:
-            await update.message.reply_text(text=offer_text, reply_markup=reply_markup)
+            if query:
+                await query.message.reply_text(text=offer_text, reply_markup=reply_markup)
+            else:
+                await update.message.reply_text(text=offer_text, reply_markup=reply_markup)
     except Exception as e:
-        print(f"Error in claim_offer: {e}")
-        await update.message.reply_text(text=offer_text, reply_markup=reply_markup)
+        print(f"Error in cancel_payment (offer flow): {e}")
+
+    return ConversationHandler.END
+
+async def reject_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    
+    text = "😔 Offer rejected. See you next time! click here to start again👉🏻(/start)👈🏻"
+    await query.message.reply_text(text)
+
+async def claim_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Just route to the cancel_payment logic since it shows the offer
+    await cancel_payment(update, context)
