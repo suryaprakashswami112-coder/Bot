@@ -35,7 +35,7 @@ async def unlock_premium(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     
     premium_text = get_setting('premium_text') or "Premium Access"
-    premium_photo = get_setting('premium_photo')
+    upi_qr = get_setting('upi_qr')
     proofs_url = get_setting('proofs_url') or "https://t.me/proofs"
     
     keyboard = [
@@ -46,8 +46,8 @@ async def unlock_premium(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
-        if premium_photo and premium_photo != 'none':
-            await query.message.reply_photo(photo=premium_photo, caption=premium_text, reply_markup=reply_markup)
+        if upi_qr and upi_qr != 'none':
+            await query.message.reply_photo(photo=upi_qr, caption=premium_text, reply_markup=reply_markup)
         else:
             await query.message.reply_text(text=premium_text, reply_markup=reply_markup)
     except Exception as e:
@@ -110,5 +110,19 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def claim_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     offer_text = get_setting('offer_text') or "Original Price: ₹79\nYour Offer Price: ₹59 ONLY!"
-    await update.message.reply_text(offer_text)
+    offer_qr = get_setting('offer_qr') or get_setting('upi_qr')
+    
+    keyboard = [
+        [InlineKeyboardButton("✅ I PAID ₹59", callback_data="i_have_paid")],
+        [InlineKeyboardButton("❌ No thanks", callback_data="cancel_payment")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
+    try:
+        if offer_qr and offer_qr != 'none':
+            await update.message.reply_photo(photo=offer_qr, caption=offer_text, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(text=offer_text, reply_markup=reply_markup)
+    except Exception as e:
+        print(f"Error in claim_offer: {e}")
+        await update.message.reply_text(text=offer_text, reply_markup=reply_markup)

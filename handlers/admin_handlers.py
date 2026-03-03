@@ -48,10 +48,11 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif data == "admin_settings":
         keyboard = [
             [InlineKeyboardButton("📝 Welcome Text", callback_data="admin_edit_welcome_text"), InlineKeyboardButton("🖼 Welcome Photo", callback_data="admin_edit_welcome_photo")],
-            [InlineKeyboardButton("💎 Premium Text", callback_data="admin_edit_premium_text"), InlineKeyboardButton("🖼 Premium Photo", callback_data="admin_edit_premium_photo")],
-            [InlineKeyboardButton("💳 UPI Message", callback_data="admin_edit_upi_message"), InlineKeyboardButton("🖼 UPI QR", callback_data="admin_edit_upi_qr")],
+            [InlineKeyboardButton("💎 Premium Text", callback_data="admin_edit_premium_text")],
+            [InlineKeyboardButton("💳 UPI / QR", callback_data="admin_edit_upi_message"), InlineKeyboardButton("🖼 UPI QR", callback_data="admin_edit_upi_qr")],
             [InlineKeyboardButton("✅ Confirm Msg", callback_data="admin_edit_confirm_message")],
-            [InlineKeyboardButton("🛑 Offer Text", callback_data="admin_edit_offer_text"), InlineKeyboardButton("📢 Broadcast Msg", callback_data="admin_edit_broadcast_message")],
+            [InlineKeyboardButton("🛑 Offer Text", callback_data="admin_edit_offer_text"), InlineKeyboardButton("🖼 Offer QR", callback_data="admin_edit_offer_qr")],
+            [InlineKeyboardButton("📢 Broadcast Msg", callback_data="admin_edit_broadcast_message")],
             [InlineKeyboardButton("🔗 Join Link", callback_data="admin_edit_join_link")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
         ]
@@ -96,7 +97,7 @@ async def receive_setting(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return EDIT_SETTING
         
     update_setting(setting_key, value)
-    await update.message.reply_text(f"✅ Setting `{setting_key}` updated securely.", parse_mode='Markdown')
+    await update.message.reply_text(f"✅ Setting {setting_key} updated securely.")
     return ConversationHandler.END
 
 async def approve_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
