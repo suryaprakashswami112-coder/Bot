@@ -4,6 +4,19 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from database import get_stats, get_setting, update_setting, update_payment_status, get_payment, get_users_by_status, update_user_status, get_admins, add_admin, remove_admin
 
+async def safe_edit_text(query, text, reply_markup=None, parse_mode=None):
+    try:
+        await query.message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg or "message content and reply markup" in error_msg:
+            pass
+        elif "parse entities" in error_msg and parse_mode:
+            try:
+                await query.message.edit_text(text, reply_markup=reply_markup)
+            except Exception:
+                pass
+
 EDIT_SETTING = 1
 RECEIVE_BROADCAST_MESSAGE = 2
 RECEIVE_NEW_ADMIN = 3
@@ -47,7 +60,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"✅ Confirmed: {stats['confirmed']}\n"
                 f"❌ Rejected: {stats['rejected']}")
         keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text=text, reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data == "admin_settings":
         keyboard = [
@@ -59,7 +72,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("📢 Broadcast Msg", callback_data="admin_edit_broadcast_message"), InlineKeyboardButton("🔗 Join Options", callback_data="admin_join_options")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
         ]
-        await query.message.edit_text("⚙️ Settings\n\nChoose what to edit:\n(Send text or an image)", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text="⚙️ Settings\n\nChoose what to edit:\n(Send text or an image)", reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data.startswith("admin_edit_"):
         setting_key = data.replace("admin_edit_", "")
@@ -74,7 +87,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("👤 Admin Control", callback_data="admin_control"), InlineKeyboardButton("⚙️ Settings", callback_data="admin_settings")],
             [InlineKeyboardButton("🔗 Join Link", callback_data="admin_join_link")]
         ]
-        await query.message.edit_text("🤖 Admin Panel\n\nChoose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text="🤖 Admin Panel\n\nChoose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data == "admin_users":
         keyboard = [
@@ -82,7 +95,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("✅ Approved Users", callback_data="admin_users_approved")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
         ]
-        await query.message.edit_text("👥 Users\n\nChoose a list to view:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text="👥 Users\n\nChoose a list to view:", reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data.startswith("admin_users_"):
         status = data.replace("admin_users_", "")
@@ -93,7 +106,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if len(users) > 50: text += "...and more."
         if not users: text += "No users found."
         keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="admin_users")]]
-        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text=text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "admin_payments":
         keyboard = [
@@ -101,7 +114,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("❌ Rejected", callback_data="admin_payments_rejected")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_back")]
         ]
-        await query.message.edit_text("💳 Payments\n\nChoose payment status:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text="💳 Payments\n\nChoose payment status:", reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data.startswith("admin_payments_"):
         status = data.replace("admin_payments_", "")
@@ -117,7 +130,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text += f"- ID: `{p['id'][:8]}...` | User: `{p['user_id']}`\n"
         if not payments: text += "No payments found."
         keyboard = [[InlineKeyboardButton("⬅️ Back", callback_data="admin_payments")]]
-        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text=text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "admin_control":
         keyboard = [
@@ -126,7 +139,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
         admins = get_admins()
         text = "👤 Admin Control\n\nCurrent Admins:\n" + "\n".join([f"- `{a}`" for a in admins])
-        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text=text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
         
     elif data == "admin_add":
         await query.message.reply_text("Please reply with the Telegram User ID you want to ADD as Admin:")
@@ -147,7 +160,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("👁 Preview Result", callback_data="admin_join_preview")],
             [InlineKeyboardButton("⬅️ Back", callback_data="admin_settings")]
         ]
-        await query.message.edit_text("🔗 Join Options\n\nEdit your post-payment join message:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit_text(query, text="🔗 Join Options\n\nEdit your post-payment join message:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "admin_join_preview":
         join_link = get_setting('join_link') or "https://example.com"

@@ -60,7 +60,8 @@ def main() -> None:
             RECEIVE_NEW_ADMIN: [MessageHandler(filters.TEXT, receive_new_admin)],
             RECEIVE_REMOVE_ADMIN: [MessageHandler(filters.TEXT, receive_remove_admin)],
         },
-        fallbacks=[CommandHandler("admin", admin_panel)]
+        fallbacks=[CommandHandler("admin", admin_panel)],
+        allow_reentry=True
     )
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(admin_conv)
